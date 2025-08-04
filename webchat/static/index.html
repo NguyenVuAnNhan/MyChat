@@ -16,6 +16,7 @@
         <script>
             const chat = document.getElementById("chat");
             const input = document.getElementById("messageInput");
+            const username = prompt("Enter your username") || "Anonymous";
             const ws = new WebSocket("ws://" + location.host + "/ws");
         
             ws.onmessage = (event) => {
@@ -26,9 +27,9 @@
             };
         
             function sendMessage() {
-              const message = input.value;
+              const message = input.value.trim();
               if (message) {
-                ws.send(message);
+                ws.send(JSON.stringify({username, message}));
                 input.value = "";
               }
             }

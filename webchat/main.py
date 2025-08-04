@@ -1,6 +1,7 @@
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from fastapi.responses import HTMLResponse
 from fastapi.staticfiles import StaticFiles
+import json
 
 app = FastAPI()
 app.mount("/static", StaticFiles(directory="static"), name="static")
@@ -42,8 +43,15 @@ async def websocket_endpoint(websocket: WebSocket):
         while True:
             # Receive input
             data = await websocket.receive_text()
-            # Broadcast input
-            await manager.broadcast(f"msg: {data}")
+            try:
+                payload = json.loads(data)
+                username = payload.get("username", "Anonymous")
+                message = payload.get("message", "")
+                if message:
+                    # Broadcast input
+                    await manager.broadcast(f"{username}: {message}")
+            except json.JSONDecodeError:
+                await manager.broadcast("Invalid message format")
     # Handle disconnection
     except WebSocketDisconnect:
         # Disconnect this connection
