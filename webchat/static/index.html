@@ -17,7 +17,9 @@
             const chat = document.getElementById("chat");
             const input = document.getElementById("messageInput");
             const username = prompt("Enter your username") || "Anonymous";
-            const ws = new WebSocket("ws://" + location.host + "/ws");
+            const room = prompt("Enter room name") || "lobby";
+
+            const ws = new WebSocket(`ws://${location.host}/ws/${room}`);
         
             ws.onmessage = (event) => {
               const msg = document.createElement("div");

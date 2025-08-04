@@ -2,6 +2,7 @@ from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from fastapi.responses import HTMLResponse
 from fastapi.staticfiles import StaticFiles
 import json
+from collections import defaultdict
 
 app = FastAPI()
 app.mount("/static", StaticFiles(directory="static"), name="static")
@@ -9,21 +10,24 @@ app.mount("/static", StaticFiles(directory="static"), name="static")
 class ConnectionManager:
     def __init__(self):
         # Keep track of the pool of connections to this room
-        self.active_connections: list[WebSocket] = []
+        self.rooms: dict[str, list[WebSocket]] = defaultdict(list)
 
-    async def connect(self, websocket: WebSocket):
+    async def connect(self, room: str, websocket: WebSocket):
         # Await for the connection to be accepted
         await websocket.accept()
         # Add to connection pool
-        self.active_connections.append(websocket)
+        self.rooms[room].append(websocket)
 
-    def disconnect(self, websocket: WebSocket):
+    def disconnect(self, room:str,  websocket: WebSocket):
         # Remove from connection pool
-        self.active_connections.remove(websocket)
+        self.rooms[room].remove(websocket)
+        # Clean up empty room
+        if not self.rooms[room]:
+            del self.rooms[room]
 
-    async def broadcast(self, message: str):
+    async def broadcast(self, room:str, message: str):
         # broadcase the message to all connections in this pool
-        for connection in self.active_connections:
+        for connection in self.rooms.get(room, []):
             await connection.send_text(message)
 
 manager = ConnectionManager()
@@ -34,10 +38,10 @@ async def get():
     return HTMLResponse(open("static/index.html").read())
 
 # Websocket endpoint
-@app.websocket("/ws")
-async def websocket_endpoint(websocket: WebSocket):
+@app.websocket("/ws/{room_name}")
+async def websocket_endpoint(websocket: WebSocket, room_name: str):
     # Connect the client to the pool
-    await manager.connect(websocket)
+    await manager.connect(room_name, websocket)
     # Event loop
     try:
         while True:
@@ -49,12 +53,12 @@ async def websocket_endpoint(websocket: WebSocket):
                 message = payload.get("message", "")
                 if message:
                     # Broadcast input
-                    await manager.broadcast(f"{username}: {message}")
+                    await manager.broadcast(room_name, f"{username}: {message}")
             except json.JSONDecodeError:
-                await manager.broadcast("Invalid message format")
+                await manager.broadcast(room_name, "Invalid message format")
     # Handle disconnection
     except WebSocketDisconnect:
         # Disconnect this connection
-        manager.disconnect(websocket)
+        manager.disconnect(room_name, websocket)
         # Announce disconnection
-        await manager.broadcast("A user disconnected")
+        await manager.broadcast(room_name, "A user disconnected")
