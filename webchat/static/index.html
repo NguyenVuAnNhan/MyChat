@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <title>FastAPI Chat</title>
+        <style>
+            body {font-family: sans-serif;}
+            #chat { height: 300px; overflow-y: scroll; border: 1px solid #ccc; padding: 1em; }
+        </style>
+    </head>
+    <body>
+        <h1>FastAPI Web Chat</h1>
+        <div id="chat"></div>
+        <input type="text" id="messageInput" placeholder="Say something..." />
+        <button onclick="sendMessage()">Send</button>
+
+        <script>
+            const chat = document.getElementById("chat");
+            const input = document.getElementById("messageInput");
+            const ws = new WebSocket("ws://" + location.host + "/ws");
+        
+            ws.onmessage = (event) => {
+              const msg = document.createElement("div");
+              msg.textContent = event.data;
+              chat.appendChild(msg);
+              chat.scrollTop = chat.scrollHeight;
+            };
+        
+            function sendMessage() {
+              const message = input.value;
+              if (message) {
+                ws.send(message);
+                input.value = "";
+              }
+            }
+        
+            input.addEventListener("keydown", (e) => {
+              if (e.key === "Enter") sendMessage();
+            });
+          </script>
+    </body>
+</html>

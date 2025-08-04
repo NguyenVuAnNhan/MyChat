@@ -23,7 +23,7 @@ class ConnectionManager:
     async def broadcast(self, message: str):
         # broadcase the message to all connections in this pool
         for connection in self.active_connections:
-            await connection.send_test(message)
+            await connection.send_text(message)
 
 manager = ConnectionManager()
 
@@ -43,7 +43,7 @@ async def websocket_endpoint(websocket: WebSocket):
             # Receive input
             data = await websocket.receive_text()
             # Broadcast input
-            await manager.broadcase(f"msg: {data}")
+            await manager.broadcast(f"msg: {data}")
     # Handle disconnection
     except WebSocketDisconnect:
         # Disconnect this connection
