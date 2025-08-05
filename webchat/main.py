@@ -49,11 +49,15 @@ async def websocket_endpoint(websocket: WebSocket, room_name: str):
             data = await websocket.receive_text()
             try:
                 payload = json.loads(data)
-                username = payload.get("username", "Anonymous")
-                message = payload.get("message", "")
-                if message:
-                    # Broadcast input
-                    await manager.broadcast(room_name, f"{username}: {message}")
+                if payload.get("type") == "join":
+                    username = payload.get("username", "Anonymous")
+                    await manager.broadcast(room_name, f"{username} joined the room.")
+                elif payload.get("type") == "chat":
+                    username = payload.get("username", "Anonymous")
+                    message = payload.get("message", "")
+                    if message:
+                        # Broadcast input
+                        await manager.broadcast(room_name, f"{username}: {message}")
             except json.JSONDecodeError:
                 await manager.broadcast(room_name, "Invalid message format")
     # Handle disconnection

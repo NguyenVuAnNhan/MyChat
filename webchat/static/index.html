@@ -20,6 +20,11 @@
             const room = prompt("Enter room name") || "lobby";
 
             const ws = new WebSocket(`ws://${location.host}/ws/${room}`);
+
+            ws.onopen = () => {
+                ws.send(JSON.stringify({ type: "join", username }));
+            };
+
         
             ws.onmessage = (event) => {
               const msg = document.createElement("div");
@@ -31,7 +36,7 @@
             function sendMessage() {
               const message = input.value.trim();
               if (message) {
-                ws.send(JSON.stringify({username, message}));
+                ws.send(JSON.stringify({type: "chat", username, message}));
                 input.value = "";
               }
             }
