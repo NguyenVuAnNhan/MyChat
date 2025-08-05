@@ -36,7 +36,7 @@
             function sendMessage() {
               const message = input.value.trim();
               if (message) {
-                ws.send(JSON.stringify({type: "chat", username, message}));
+                ws.send(JSON.stringify({type: "chat", message}));
                 input.value = "";
               }
             }
