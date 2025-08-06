@@ -1,8 +1,12 @@
-from fastapi import FastAPI, WebSocket, WebSocketDisconnect
+from fastapi import FastAPI, WebSocket, WebSocketDisconnect, Depends
 from fastapi.responses import HTMLResponse
 from fastapi.staticfiles import StaticFiles
 import json
 from collections import defaultdict
+from models.message import Message
+from db.session import engine, Base, get_db, SessionLocal
+from sqlalchemy.orm import Session
+
 
 app = FastAPI()
 app.mount("/static", StaticFiles(directory="static"), name="static")
@@ -28,10 +32,16 @@ class ConnectionManager:
         if not self.rooms[room]:
             del self.rooms[room]
 
-    async def broadcast(self, room:str, message: str):
+    async def broadcast(self, room: str, username: str, message: str, db: Session):
         # broadcase the message to all connections in this pool
+        db_msg = Message(room=room, username=username, message=message)
+        db.add(db_msg)
+        db.commit()
+
         for connection in self.rooms.get(room, []):
             await connection.send_text(message)
+
+Base.metadata.create_all(bind=engine)
 
 manager = ConnectionManager()
 
@@ -39,6 +49,21 @@ manager = ConnectionManager()
 @app.get("/")
 async def get():
     return HTMLResponse(open("static/index.html").read())
+
+@app.get("/api/{room_name}/history")
+async def get_history(room_name: str, db: Session = Depends(get_db)):
+    messages = (
+        db.query(Message)
+        .filter(Message.room == room_name)
+        .order_by(Message.timestamp.asc())
+        .limit(50)
+        .all()
+    )
+    return [
+        {"username": m.username, "message": m.message, "timestamp": m.timestamp.isoformat()}
+        for m in messages
+    ]
+
 
 @app.get("/rooms")
 async def list_rooms():
@@ -65,7 +90,9 @@ async def websocket_endpoint(websocket: WebSocket, room_name: str):
         
         username = payload.get("username", "Anonymous")
         await manager.connect(room_name, websocket, username)
-        await manager.broadcast(room_name, f"{username} joined the room.")
+        with SessionLocal() as db:
+            await manager.broadcast(room_name, username, f"{username} joined the room.", db)
+            db.close()
 
         while True:
             # Receive input
@@ -74,7 +101,10 @@ async def websocket_endpoint(websocket: WebSocket, room_name: str):
             if payload.get("type") == "chat":
                 message = payload.get("message", "")
                 if message:
-                    await manager.broadcast(room_name, f"{username}: {message}")
+                    with SessionLocal() as db:
+                        await manager.broadcast(room_name, username, f"{username}: {message}", db)
+                        db.close()
+
     # Handle disconnection
     except WebSocketDisconnect:
         # Disconnect this connection

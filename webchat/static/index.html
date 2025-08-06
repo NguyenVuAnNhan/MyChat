@@ -19,6 +19,18 @@
             const username = prompt("Enter your username") || "Anonymous";
             const room = prompt("Enter room name") || "lobby";
 
+            async function loadHistory(room) {
+                const res = await fetch(`/api/${room}/history`);
+                const history = await res.json();
+                history.forEach(msg => {
+                    const el = document.createElement("div");
+                    el.textContent = `${msg.message}`;
+                    chat.appendChild(el);
+                });
+            }
+
+            loadHistory(room);
+
             const ws = new WebSocket(`ws://${location.host}/ws/${room}`);
 
             ws.onopen = () => {
