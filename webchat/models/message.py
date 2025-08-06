@@ -1,7 +1,5 @@
 from sqlalchemy import Column, Integer, String, Text, DateTime, func
-from sqlalchemy.ext.declarative import declarative_base
-
-Base = declarative_base()
+from db.session import Base
 
 class Message(Base):
     __tablename__ = "messages"
