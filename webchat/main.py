@@ -64,9 +64,12 @@ async def get_history(room_name: str, db: Session = Depends(get_db)):
         for m in messages
     ]
 
-
 @app.get("/rooms")
-async def list_rooms():
+async def list_active_rooms():
+    return HTMLResponse(open("static/rooms.html").read())
+
+@app.get("/rooms_data")
+async def retrieve_rooms():
     return {
         "rooms": [
             {"name": room, "users": len(users)}
