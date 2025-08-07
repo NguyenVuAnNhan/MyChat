@@ -60,6 +60,14 @@ manager = ConnectionManager()
 async def get():
     return HTMLResponse(open("static/index.html").read())
 
+@app.get("/login")
+async def login():
+    return HTMLResponse(open("static/login.html").read())
+
+@app.get("/register")
+async def register():
+    return HTMLResponse(open("static/register.html").read())
+
 @app.get("/api/{room_name}/history")
 async def get_history(room_name: str, db: Session = Depends(get_db)):
     messages = (
