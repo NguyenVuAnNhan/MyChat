@@ -77,6 +77,10 @@ async def retrieve_rooms():
         ]
     }
 
+@app.get("/t/{room_name}")
+async def chatroom():
+    return HTMLResponse(open("static/chatroom.html").read())
+
 # Websocket endpoint
 @app.websocket("/ws/{room_name}")
 async def websocket_endpoint(websocket: WebSocket, room_name: str):
