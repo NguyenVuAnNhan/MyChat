@@ -1,15 +1,25 @@
-from fastapi import FastAPI, WebSocket, WebSocketDisconnect, Depends
+from fastapi import FastAPI, WebSocket, WebSocketDisconnect, Depends, Cookie
 from fastapi.responses import HTMLResponse
 from fastapi.staticfiles import StaticFiles
+from typing import Optional
 import json
 from collections import defaultdict
-from models.message import Message
+from models.Message import Message
 from db.session import engine, Base, get_db, SessionLocal
 from sqlalchemy.orm import Session
+from starlette.middleware.sessions import SessionMiddleware
+import os
+from dotenv import load_dotenv
+from api import auth
 
+load_dotenv()  
+
+SECRET = os.getenv("SECRET")
 
 app = FastAPI()
 app.mount("/static", StaticFiles(directory="static"), name="static")
+app.add_middleware(SessionMiddleware, secret_key=SECRET)
+app.include_router(auth.router, prefix="/auth", tags=["auth"])
 
 class ConnectionManager:
     def __init__(self):
@@ -83,7 +93,7 @@ async def chatroom():
 
 # Websocket endpoint
 @app.websocket("/ws/{room_name}")
-async def websocket_endpoint(websocket: WebSocket, room_name: str):
+async def websocket_endpoint(websocket: WebSocket, room_name: str, session: Optional[str] = Cookie(None)):
     # Connect the client to the pool
     await websocket.accept()
     username = None
