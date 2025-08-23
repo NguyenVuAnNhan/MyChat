@@ -39,10 +39,10 @@ def login(
     return {"message": "Login successful"}
 
 @router.post("/logout")
-def logout():
+def logout(request: Request):
+    request.session.clear()  # clear server-side session data
     response = JSONResponse(content={"message": "Logged out"})
-    response.delete_cookie("username")
-    response.delete_cookie("user_id")
+    response.delete_cookie("session")  # "session" is default cookie name
     return response
 
 @router.get("/me")
