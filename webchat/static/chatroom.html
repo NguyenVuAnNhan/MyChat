@@ -8,10 +8,19 @@
         </style>
     </head>
     <body>
-        <div id="header">
-          <nav id="navLinks"></nav>
-        </div>
-        <script src="/static/js/header.js"></script>
+      <div id="header"></div>
+      <script>
+      (async () => {
+        const html = await (await fetch("/static/header.html")).text();
+        document.getElementById("header").innerHTML = html;
+      
+        const s = document.createElement("script");
+        s.src = "/static/js/header.js";
+        s.onload = () => window.renderHeader && window.renderHeader(); // call explicitly
+        document.body.appendChild(s);
+      })();
+      </script>
+      
       
         <h1>FastAPI Web Chat</h1>
         <div id="chat"></div>
