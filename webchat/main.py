@@ -1,9 +1,11 @@
-from fastapi import FastAPI, WebSocket, WebSocketDisconnect, Depends, Cookie
+from fastapi import FastAPI, Request, WebSocket, WebSocketDisconnect, Depends, Cookie
 from fastapi.responses import HTMLResponse
 from fastapi.staticfiles import StaticFiles
 from typing import Optional
 import json
 from collections import defaultdict
+
+from pydantic import BaseModel
 from models.Message import Message
 from db.session import engine, Base, get_db, SessionLocal
 from sqlalchemy.orm import Session
@@ -26,6 +28,9 @@ class ConnectionManager:
         # Keep track of the pool of connections to this room
         self.rooms: dict[str, list[WebSocket]] = defaultdict(list)
         self.usernames: dict[WebSocket, str] = {}
+
+    def check_existing(self, room: str) -> bool:
+        return room in self.rooms and len(self.rooms[room]) > 0
 
     async def connect(self, room: str, websocket: WebSocket, username: str):
         # Add to connection pool
@@ -57,8 +62,8 @@ manager = ConnectionManager()
 
 # Home endpoint
 @app.get("/")
-async def get(session: Optional[str] = Cookie(None)):
-    return session
+async def index():
+    return HTMLResponse(open("static/rooms.html").read())
 
 @app.get("/login")
 async def login():
@@ -82,9 +87,13 @@ async def get_history(room_name: str, db: Session = Depends(get_db)):
         for m in messages
     ]
 
-@app.get("/rooms")
-async def list_active_rooms():
-    return HTMLResponse(open("static/rooms.html").read())
+@app.get("/api/me")
+async def get_me(request: Request):
+    username = request.session.get("username")
+    if username:
+        return {"username": username}
+    else:
+        return {"username": "Anonymous"}
 
 @app.get("/rooms_data")
 async def retrieve_rooms():
@@ -94,6 +103,20 @@ async def retrieve_rooms():
             for room, users in manager.rooms.items()
         ]
     }
+
+class NewRoomRequest(BaseModel):
+    room_id: str
+
+class NewRoomResponse(BaseModel):
+    room_id: str
+
+@app.post("api/new_room")
+async def make_room(room_request : NewRoomRequest):
+    if manager.check_existing(room_request.room_id):
+        return {}
+    else:
+        return NewRoomResponse(room_id=room_request.room_id)
+
 
 @app.get("/t/{room_name}")
 async def chatroom():
