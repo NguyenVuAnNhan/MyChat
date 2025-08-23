@@ -37,3 +37,10 @@ def login(
     request.session["user_id"] = user.id
     request.session["username"] = user.username
     return {"message": "Login successful"}
+
+@router.post("/logout")
+def logout():
+    response = JSONResponse(content={"message": "Logged out"})
+    response.delete_cookie("username")
+    response.delete_cookie("user_id")
+    return response
