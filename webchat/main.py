@@ -57,8 +57,8 @@ manager = ConnectionManager()
 
 # Home endpoint
 @app.get("/")
-async def get():
-    return HTMLResponse(open("static/index.html").read())
+async def get(session: Optional[str] = Cookie(None)):
+    return session
 
 @app.get("/login")
 async def login():
