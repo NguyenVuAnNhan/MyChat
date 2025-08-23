@@ -28,9 +28,24 @@ class ConnectionManager:
         # Keep track of the pool of connections to this room
         self.rooms: dict[str, list[WebSocket]] = defaultdict(list)
         self.usernames: dict[WebSocket, str] = {}
+        self.delete_queue: set[str] = set()
 
     def check_existing(self, room: str) -> bool:
-        return room in self.rooms and len(self.rooms[room]) > 0
+        return room in self.rooms
+    
+    def enqueue_delete(self, room:str):
+        self.delete_queue.add(room)
+    
+    def dequeue_delete(self, room:str):
+        self.delete_queue.remove(room)
+
+    def delete_room(self):
+        while self.delete_queue:
+            deleted = self.delete_queue.pop()
+            del self.rooms[deleted]
+    
+    def create_room(self, room: str):
+        self.rooms[room] = []
 
     async def connect(self, room: str, websocket: WebSocket, username: str):
         # Add to connection pool
@@ -97,11 +112,19 @@ async def get_me(request: Request):
 
 @app.get("/rooms_data")
 async def retrieve_rooms():
+    manager.delete_room()
+
+    res = []
+
+    for room, users in manager.rooms.items():
+        if len(users) == 0:
+            manager.enqueue_delete(room)
+        else:
+            manager.dequeue_delete(room)
+        res.append({"name": room, "users": len(users)})
+
     return {
-        "rooms": [
-            {"name": room, "users": len(users)}
-            for room, users in manager.rooms.items()
-        ]
+        "rooms": res
     }
 
 class NewRoomRequest(BaseModel):
@@ -110,11 +133,12 @@ class NewRoomRequest(BaseModel):
 class NewRoomResponse(BaseModel):
     room_id: str
 
-@app.post("api/new_room")
+@app.post("/api/new_room")
 async def make_room(room_request : NewRoomRequest):
     if manager.check_existing(room_request.room_id):
         return {}
     else:
+        manager.create_room(room_request.room_id)
         return NewRoomResponse(room_id=room_request.room_id)
 
 
