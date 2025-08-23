@@ -1,3 +1,4 @@
+import asyncio
 from fastapi import FastAPI, Request, WebSocket, WebSocketDisconnect, Depends, Cookie
 from fastapi.responses import HTMLResponse
 from fastapi.staticfiles import StaticFiles
@@ -33,16 +34,11 @@ class ConnectionManager:
     def check_existing(self, room: str) -> bool:
         return room in self.rooms
     
-    def enqueue_delete(self, room:str):
-        self.delete_queue.add(room)
-    
-    def dequeue_delete(self, room:str):
-        self.delete_queue.remove(room)
-
-    def delete_room(self):
-        while self.delete_queue:
-            deleted = self.delete_queue.pop()
-            del self.rooms[deleted]
+    def clear_empty(self):
+        empty = [room for room, conns in self.rooms.items() if not conns]
+        for room in empty:
+            print(f"Clearing empty room: {room}")
+            del self.rooms[room]
     
     def create_room(self, room: str):
         self.rooms[room] = []
@@ -74,6 +70,14 @@ class ConnectionManager:
 Base.metadata.create_all(bind=engine)
 
 manager = ConnectionManager()
+
+@app.on_event("startup")
+async def cleanup_task():
+    async def loop():
+        while True:
+            manager.clear_empty()
+            await asyncio.sleep(60)  # wait 60s
+    asyncio.create_task(loop())
 
 # Home endpoint
 @app.get("/")
@@ -107,10 +111,6 @@ async def retrieve_rooms():
     res = []
 
     for room, users in manager.rooms.items():
-        if len(users) == 0:
-            manager.enqueue_delete(room)
-        else:
-            manager.dequeue_delete(room)
         res.append({"name": room, "users": len(users)})
 
     return {
