@@ -102,18 +102,8 @@ async def get_history(room_name: str, db: Session = Depends(get_db)):
         for m in messages
     ]
 
-@app.get("/api/me")
-async def get_me(request: Request):
-    username = request.session.get("username")
-    if username:
-        return {"username": username}
-    else:
-        return {"username": "Anonymous"}
-
 @app.get("/rooms_data")
 async def retrieve_rooms():
-    manager.delete_room()
-
     res = []
 
     for room, users in manager.rooms.items():

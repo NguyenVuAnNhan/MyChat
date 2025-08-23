@@ -63,6 +63,7 @@
         // Optionally update the page without navigating
         if (Object.keys(data).length !== 0){
             alert(`Room created: ${data.room_id}`);
+            fetchRooms();
         }
         else{
             alert('Room existed, can not create new room!')
