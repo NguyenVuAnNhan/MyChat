@@ -44,3 +44,11 @@ def logout():
     response.delete_cookie("username")
     response.delete_cookie("user_id")
     return response
+
+@router.get("/me")
+async def me(request: Request):
+    # Browser sends the HttpOnly session cookie automatically
+    user = request.session.get("username")
+    if user:
+        return {"authenticated": True, "username": user}
+    return {"authenticated": False, "username": "Anonymous"}
