@@ -1,4 +1,5 @@
 import asyncio
+import base64
 from fastapi import FastAPI, Request, WebSocket, WebSocketDisconnect, Depends, Cookie
 from fastapi.responses import HTMLResponse
 from fastapi.staticfiles import StaticFiles
@@ -6,6 +7,7 @@ from typing import Optional
 import json
 from collections import defaultdict
 
+from itsdangerous import BadSignature, Signer
 from pydantic import BaseModel
 from models.Message import Message
 from db.session import engine, Base, get_db, SessionLocal
@@ -23,6 +25,8 @@ app = FastAPI()
 app.mount("/static", StaticFiles(directory="static"), name="static")
 app.add_middleware(SessionMiddleware, secret_key=SECRET)
 app.include_router(auth.router, prefix="/auth", tags=["auth"])
+
+signer = Signer(SECRET)
 
 class ConnectionManager:
     def __init__(self):
@@ -141,7 +145,19 @@ async def chatroom():
 async def websocket_endpoint(websocket: WebSocket, room_name: str, session: Optional[str] = Cookie(None)):
     # Connect the client to the pool
     await websocket.accept()
-    username = None
+
+    if session:
+        try:
+            data = signer.unsign(session)
+            decoded = base64.b64decode(data).decode()
+            session_dict = json.loads(decoded)
+            username = session_dict["username"]
+        except BadSignature:
+            print("Invalid or tampered cookie")
+            username = "Anonymous"
+    else:
+        username = "Anonymous"
+
     # Event loop
     try:
         join_data = await websocket.receive_text()
@@ -150,7 +166,6 @@ async def websocket_endpoint(websocket: WebSocket, room_name: str, session: Opti
             await websocket.close(code=4000)
             return
         
-        username = payload.get("username", "Anonymous")
         await manager.connect(room_name, websocket, username)
         with SessionLocal() as db:
             await manager.broadcast(room_name, username, f"{username} joined the room.", db)
