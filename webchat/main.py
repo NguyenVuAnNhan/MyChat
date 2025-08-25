@@ -187,4 +187,6 @@ async def websocket_endpoint(websocket: WebSocket, room_name: str, session: Opti
         # Disconnect this connection
         manager.disconnect(room_name, websocket)
         # Announce disconnection
-        await manager.broadcast(room_name, "A user disconnected")
+        with SessionLocal() as db:
+            await manager.broadcast(room_name, username, f"{username} disconnected", db)
+            db.close()
